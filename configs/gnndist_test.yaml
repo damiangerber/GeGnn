@@ -29,7 +29,7 @@ DATA:
 
     # data loading
     location: ./
-    filelist: ./data/tiny/filelist/filelist_train.txt
+    filelist: ./data/filelist/filelist_train.txt
     batch_size: 1
     shuffle: True
     num_workers: 0
@@ -44,7 +44,7 @@ DATA:
 
     # data loading
     location: ./
-    filelist: ./data/tiny/filelist/filelist_test.txt
+    filelist: ./data/filelist/filelist_test.txt
     batch_size: 4
     shuffle: True
     num_workers: 10

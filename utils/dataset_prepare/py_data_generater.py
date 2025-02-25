@@ -9,9 +9,9 @@ from tqdm import tqdm
 
 
 
-PATH_TO_MESH = "./data/tiny/meshes/"
-PATH_TO_OUTPUT_NPZ = "./data/tiny/npz/"
-PATH_TO_OUTPUT_FILELIST = "./data/tiny/filelist/"
+PATH_TO_MESH = "./data/meshes/"
+PATH_TO_OUTPUT_NPZ = "./data/npz/"
+PATH_TO_OUTPUT_FILELIST = "./data/filelist/"
 
 TRAINING_SPLIT_RATIO = 0.8
 
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     print("\nnpz data generation finished. Now generating filelist...\n")
     # 最后生成 filelist
     lines = []
-    breakpoint()
+    # breakpoint()
     for each in tqdm(object_names):
         filename_out = PATH_TO_OUTPUT_NPZ + each.split("/")[-1] + ".npz"
         try:
