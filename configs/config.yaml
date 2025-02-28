@@ -1,13 +1,11 @@
 SOLVER:
-  gpu: 0,
   run: train
-
+  
   logdir: logs/my_test
   max_epoch: 500
   test_every_epoch: 20
   log_per_iter: 10
   ckpt_num: 5
-  dist_url: tcp://localhost:10266
 
   # optimizer
   type: adamw
@@ -57,8 +55,6 @@ MODEL:
 
   nout: 256     # the final embedding dimension of each vertices
   nempty: True
-
-  num_edge_types: 7           # deprecated
 
   # SAGE, GAT, Edge, DirConv, DistConv, my
   conv_type: my

@@ -18,7 +18,6 @@ _C = CN()
 # SOLVER related parameters
 _C.SOLVER = CN()
 _C.SOLVER.alias             = ''         # The experiment alias
-_C.SOLVER.gpu               = (0,)       # The gpu ids
 _C.SOLVER.run               = 'train'    # Choose from train or test
 
 _C.SOLVER.logdir            = 'logs'     # Directory where to write event logs
@@ -43,7 +42,6 @@ _C.SOLVER.gamma             = 0.1        # Learning rate step-wise decay
 _C.SOLVER.milestones        = (120,180,) # Learning rate milestones
 _C.SOLVER.lr_power          = 0.9        # Used in poly learning rate
 
-_C.SOLVER.dist_url          = 'tcp://localhost:10001'
 _C.SOLVER.progress_bar      = True       # Enable the progress_bar or not
 _C.SOLVER.rand_seed         = -1         # Fix the random seed if larger than 0
 _C.SOLVER.empty_cache       = True       # Empty cuda cache periodically
@@ -103,7 +101,6 @@ _C.MODEL.sync_bn            = False       # Use sync_bn when training the networ
 _C.MODEL.use_checkpoint     = False       # Use checkpoint to save memory
 _C.MODEL.find_unused_parameters = False   # Used in DistributedDataParallel
 
-_C.MODEL.num_edge_types     = 7
 _C.MODEL.conv_type          = "SAGE"
 _C.MODEL.include_distance   = False
 _C.MODEL.normal_aware_pooling = False
@@ -156,27 +153,30 @@ def _backup_config(FLAGS, args):
     fid.write(FLAGS.dump())
 
 
-def _set_env_var(FLAGS):
-  gpus = ','.join([str(a) for a in FLAGS.SOLVER.gpu])
-  os.environ['CUDA_VISIBLE_DEVICES'] = gpus
-
-
 def get_config():
   return FLAGS
 
-def parse_args(backup=True):
-  parser = argparse.ArgumentParser(description='The configs')
-  parser.add_argument('--config', type=str,
-                      help='experiment configure file name')
-  parser.add_argument('opts', nargs=argparse.REMAINDER,
-                      help="Modify config options using the command-line")
+def parse_args(backup=True, config_path=None):
+    parser = argparse.ArgumentParser(description='The configs')
+    
+    # If no config path is passed, set a default one
+    if not config_path:
+        config_path = 'configs/config.yaml'  # Replace with your fixed config path
+    
+    # Directly assign the fixed config file path
+    parser.add_argument('--config', type=str, default=config_path,
+                        help='experiment configure file name')
 
-  args = parser.parse_args()
-  _update_config(FLAGS, args)
-  if backup:
-    _backup_config(FLAGS, args)
-  # _set_env_var(FLAGS)
-  return FLAGS
+    parser.add_argument('opts', nargs=argparse.REMAINDER,
+                        help="Modify config options using the command-line")
+
+    args = parser.parse_args()
+    _update_config(FLAGS, args)
+    
+    if backup:
+        _backup_config(FLAGS, args)
+    
+    return FLAGS
 
 
 if __name__ == '__main__':
