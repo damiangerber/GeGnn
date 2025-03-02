@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import hgraph
 import trimesh
 import argparse
@@ -37,7 +38,7 @@ def read_mesh(path, to_tensor=True, device="cpu"):
     }
 
 # a wrapper of pretrained model
-class PretrainedModel(torch.nn.Module):
+class PretrainedModel(nn.Module):
     def __init__(self, ckpt_path):
         super(PretrainedModel, self).__init__()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

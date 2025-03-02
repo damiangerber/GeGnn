@@ -5,12 +5,11 @@ from utils import ocnn
 import numpy as np
 from utils.thsolver import Dataset
 
-
 from hgraph.hgraph import Data
 from hgraph.hgraph import HGraph
 
 
-class Transform(utils.ocnn.dataset.Transform):
+class Transform(ocnn.dataset.Transform):
 
   def __call__(self, sample: dict, idx: int):
     vertices = torch.from_numpy(sample['vertices'].astype(np.float32))
@@ -18,7 +17,7 @@ class Transform(utils.ocnn.dataset.Transform):
     edges = torch.from_numpy(sample['edges'].astype(np.float32)).t().contiguous().long()
     dist_idx = sample['dist_idx'].astype(np.float32)
     dist_val = sample['dist_val'].astype(np.float32)
-   # breakpoint()
+    
     dist = np.concatenate([dist_idx, dist_val], -1)
     dist = torch.from_numpy(dist)
 
@@ -57,7 +56,7 @@ def collate_batch(batch: list):
     outputs[key] = [b[key] for b in batch]
 
   pts_num = torch.tensor([pts.shape[0] for pts in outputs['vertices']])
-  cum_sum = utils.ocnn.utils.cumsum(pts_num, dim=0, exclusive=True)
+  cum_sum = ocnn.utils.cumsum(pts_num, dim=0, exclusive=True)
   for i, dist in enumerate(outputs['dist']):
     dist[:, :2] += cum_sum[i]
   #for i, edge in enumerate(outputs['edges']):

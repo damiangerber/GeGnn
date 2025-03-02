@@ -1,15 +1,10 @@
 
 import torch
-import math
+import torch.nn as nn
 import torch.utils.checkpoint
-from typing import List, Optional
+from typing import Optional
 
-
-from hgraph.hgraph import Data
-#from torch_geometric.nn import avg_pool
-from hgraph.hgraph import avg_pool
-from hgraph.hgraph import HGraph
-
+from hgraph.hgraph import Data, avg_pool, HGraph
 
 bn_momentum, bn_eps = 0.01, 0.001    # the default value of Tensorflow 1.x
 # bn_momentum, bn_eps = 0.1, 1e-05   # the default value of pytorch
@@ -20,7 +15,6 @@ bn_momentum, bn_eps = 0.01, 0.001    # the default value of Tensorflow 1.x
 ###############################################################
 
 from .decide_edge_type import *
-
 
 
 def broadcast(src: torch.Tensor, other: torch.Tensor, dim: int):
@@ -80,7 +74,7 @@ def scatter_add(src: torch.Tensor, index: torch.Tensor, dim: int = -1,
 
 from torch_geometric.nn import GraphSAGE
 
-class GraphSAGEConv(torch.nn.Module):
+class GraphSAGEConv(nn.Module):
     def __init__(self, in_channels: int, out_channels: int,
                  ):
         super().__init__()
@@ -95,7 +89,7 @@ class GraphSAGEConv(torch.nn.Module):
 
 from torch_geometric.nn import GATv2Conv
 
-class GraphAttentionConv(torch.nn.Module):
+class GraphAttentionConv(nn.Module):
     # Graph Attention Network ()
     def __init__(self, in_channels: int, out_channels: int,
                  ):
@@ -110,7 +104,6 @@ class GraphAttentionConv(torch.nn.Module):
 
 
 ############################################################
-from torch.nn import Sequential as Seq, Linear, ReLU
 from torch_geometric.nn import MessagePassing, HeteroLinear
 
       
@@ -167,7 +160,7 @@ class MyConvOp(MessagePassing):
         return out
       
 
-class MyConv(torch.nn.Module):
+class MyConv(nn.Module):
     # My Conv, consider neighbor features (relative pos and its abs)
     # and many seperated catagories
     def __init__(self, in_channels: int, out_channels: int,
@@ -208,11 +201,10 @@ else:
   raise NotImplementedError
 
 # group norm
-normalization = lambda x: torch.nn.GroupNorm(num_groups=4, num_channels=x, eps=bn_eps)
+normalization = lambda x: nn.GroupNorm(num_groups=4, num_channels=x, eps=bn_eps)
 
 
-
-class GraphConvBn(torch.nn.Module):
+class GraphConvBn(nn.Module):
     def __init__(self, in_channels: int, out_channels: int,
                  ):
         super().__init__()
@@ -225,13 +217,13 @@ class GraphConvBn(torch.nn.Module):
         return out
 
 
-class GraphConvBnRelu(torch.nn.Module):
+class GraphConvBnRelu(nn.Module):
     def __init__(self, in_channels: int, out_channels: int,
                  ):
         super().__init__()
         self.conv = GraphConv(in_channels, out_channels)
         self.bn = normalization(out_channels)
-        self.relu = torch.nn.ReLU() # inplace=True
+        self.relu = nn.ReLU() # inplace=True
 
     def forward(self, data: torch.Tensor, hgraph: HGraph, depth: int):
         out = self.conv(data, hgraph, depth)
@@ -240,7 +232,7 @@ class GraphConvBnRelu(torch.nn.Module):
         return out
 
 
-class PoolingGraph(torch.nn.Module):
+class PoolingGraph(nn.Module):
     def __init__(self):
         super().__init__()
         pass
@@ -250,7 +242,7 @@ class PoolingGraph(torch.nn.Module):
         out = avg_pool(cluster=cluster, data=Data(x=x, edge_index=torch.zeros([2,1]).long()))  # fake edges XD
         return out.x
 
-class UnpoolingGraph(torch.nn.Module):
+class UnpoolingGraph(nn.Module):
     def __init__(self):
         super().__init__()
         pass
@@ -264,19 +256,17 @@ class UnpoolingGraph(torch.nn.Module):
         return out
 
 
-
-
-class Conv1x1(torch.nn.Module):
+class Conv1x1(nn.Module):
   r''' Performs a convolution with kernel :obj:`(1,1,1)`.
 
   The shape of octree features is :obj:`(N, C)`, where :obj:`N` is the node
   number and :obj:`C` is the feature channel. Therefore, :class:`Conv1x1` can be
-  implemented with :class:`torch.nn.Linear`.
+  implemented with :class:`nn.Linear`.
   '''
 
   def __init__(self, in_channels: int, out_channels: int, use_bias: bool = False):
     super().__init__()
-    self.linear = torch.nn.Linear(in_channels, out_channels, use_bias)
+    self.linear = nn.Linear(in_channels, out_channels, use_bias)
 
   def forward(self, data: torch.Tensor):
     r''''''
@@ -284,7 +274,7 @@ class Conv1x1(torch.nn.Module):
     return self.linear(data)
 
 
-class Conv1x1Bn(torch.nn.Module):
+class Conv1x1Bn(nn.Module):
   r''' A sequence of :class:`Conv1x1` and :class:`BatchNorm`.
   '''
 
@@ -301,7 +291,7 @@ class Conv1x1Bn(torch.nn.Module):
     return out
 
 
-class Conv1x1BnRelu(torch.nn.Module):
+class Conv1x1BnRelu(nn.Module):
   r''' A sequence of :class:`Conv1x1`, :class:`BatchNorm` and :class:`Relu`.
   '''
 
@@ -309,7 +299,7 @@ class Conv1x1BnRelu(torch.nn.Module):
     super().__init__()
     self.conv = Conv1x1(in_channels, out_channels, use_bias=False)
     self.bn = normalization(out_channels)
-    self.relu = torch.nn.ReLU(inplace=True)
+    self.relu = nn.ReLU(inplace=True)
 
   def forward(self, data: torch.Tensor):
     r''''''
@@ -320,16 +310,16 @@ class Conv1x1BnRelu(torch.nn.Module):
     return out
 
 
-class FcBnRelu(torch.nn.Module):
+class FcBnRelu(nn.Module):
   r''' A sequence of :class:`FC`, :class:`BatchNorm` and :class:`Relu`.
   '''
 
   def __init__(self, in_channels: int, out_channels: int):
     super().__init__()
-    self.flatten = torch.nn.Flatten(start_dim=1)
-    self.fc = torch.nn.Linear(in_channels, out_channels, bias=False)
+    self.flatten = nn.Flatten(start_dim=1)
+    self.fc = nn.Linear(in_channels, out_channels, bias=False)
     self.bn = normalization(out_channels)
-    self.relu = torch.nn.ReLU(inplace=True)
+    self.relu = nn.ReLU(inplace=True)
 
   def forward(self, data):
     r''''''

@@ -1,18 +1,15 @@
 
 import torch
-import torch.nn
-from typing import Dict, Optional
+import torch.nn as nn
+from typing import Dict
 
-
-from hgraph.hgraph import Data
 from hgraph.hgraph import HGraph
-
-from hgraph.modules.resblocks import GraphResBlocks, GraphResBlock2, GraphResBlock
+from hgraph.modules.resblocks import GraphResBlocks, GraphResBlock2
 from hgraph.modules import modules
 
 
-class GraphUNet(torch.nn.Module):
-  r''' 
+class GraphUNet(nn.Module):
+  ''' 
   A U-Net like network with graph neural network, utilizing HGraph (hierarchical graph) as
   the data structure.
   '''
@@ -29,10 +26,10 @@ class GraphUNet(torch.nn.Module):
     # encoder
     self.conv1 = modules.GraphConvBnRelu(in_channels, self.encoder_channel[0])
 
-    self.downsample = torch.nn.ModuleList(
+    self.downsample = nn.ModuleList(
         [modules.PoolingGraph() for i in range(self.encoder_stages)]
     )
-    self.encoder = torch.nn.ModuleList(
+    self.encoder = nn.ModuleList(
         [GraphResBlocks(self.encoder_channel[i], self.encoder_channel[i+1],
                         resblk_num=self.encoder_blocks[i], resblk=self.resblk)
          for i in range(self.encoder_stages)]
@@ -41,10 +38,10 @@ class GraphUNet(torch.nn.Module):
     # decoder
     channel = [self.decoder_channel[i] + self.encoder_channel[-i-2]
                for i in range(self.decoder_stages)]
-    self.upsample = torch.nn.ModuleList(
+    self.upsample = nn.ModuleList(
         [modules.UnpoolingGraph() for i in range(self.decoder_stages)]
     )
-    self.decoder = torch.nn.ModuleList(
+    self.decoder = nn.ModuleList(
         [GraphResBlocks(channel[i], self.decoder_channel[i+1],
                         resblk_num=self.decoder_blocks[i], resblk=self.resblk, bottleneck=self.bottleneck)
          for i in range(self.decoder_stages)]
@@ -53,21 +50,22 @@ class GraphUNet(torch.nn.Module):
     # header
     # channel = self.decoder_channel[self.decoder_stages]
     #self.octree_interp = ocnn.nn.OctreeInterp(interp, nempty)
-    self.header = torch.nn.Sequential(
+    self.header = nn.Sequential(
         modules.Conv1x1BnRelu(self.decoder_channel[-1], self.decoder_channel[-1]),
         modules.Conv1x1(self.decoder_channel[-1], self.out_channels, use_bias=True))
     
     # a embedding decoder function
-    self.embedding_decoder_mlp = torch.nn.Sequential(
-            torch.nn.Linear(self.out_channels, self.out_channels, bias=True),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.out_channels, self.out_channels, bias=True),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.out_channels, 1, bias=True)            
+    self.embedding_decoder_mlp = nn.Sequential(
+            nn.Linear(self.out_channels, self.out_channels, bias=True),
+            nn.ReLU(),
+            nn.Linear(self.out_channels, self.out_channels, bias=True),
+            nn.ReLU(),
+            nn.Linear(self.out_channels, 1, bias=True)            
         )
 
   def config_network(self):
-    r''' Configure the network channels and Resblock numbers.
+    '''
+    Configure the network channels and Resblock numbers.
     '''
     self.encoder_blocks = [2, 3, 3, 3, 2]
     self.decoder_blocks = [2, 3, 3, 3, 2]
@@ -83,7 +81,8 @@ class GraphUNet(torch.nn.Module):
     self.resblk = GraphResBlock2
 
   def unet_encoder(self, data: torch.Tensor, hgraph: HGraph, depth: int):
-    r''' The encoder of the U-Net.
+    '''
+    The encoder of the U-Net.
     '''
 
     convd = dict()
@@ -95,7 +94,8 @@ class GraphUNet(torch.nn.Module):
     return convd
 
   def unet_decoder(self, convd: Dict[int, torch.Tensor], hgraph: HGraph, depth: int):
-    r''' The decoder of the U-Net. 
+    '''
+    The decoder of the U-Net. 
     '''
 
     deconv = convd[depth]
@@ -107,15 +107,19 @@ class GraphUNet(torch.nn.Module):
     return deconv
 
   def forward(self, data: torch.Tensor, hgraph: HGraph, depth: int, dist: torch.Tensor, only_embd=False):
-    """_summary_
-
+    """
+    Forward pass of the network. This function is used for training and testing. The network
+    will return the predicted distance between the input points.
+    
     Args:
-        data (torch.Tensor): _description_
-        hgraph (HGraph): _description_
-        depth (int): _description_
-        dist (torch.Tensor): _description_
-        only_embd (bool, optional): If True, the return value will be the embeddings of vertices; if False, 
-                                    return the estimated distance of point pairs. Defaults to False.
+      data: torch.Tensor, the input features.
+      hgraph: HGraph, the hierarchical graph.
+      depth: int, the depth of the hierarchical graph.
+      dist: torch.Tensor, the ground truth distance between the input points.
+      only_embd: bool, if True, only the embedding will be returned.
+      
+    Returns:
+      torch.Tensor, the predicted distance between the input points
     """
     convd = self.unet_encoder(data, hgraph, depth)
     deconv = self.unet_decoder(convd, hgraph, depth - self.encoder_stages)
@@ -132,10 +136,6 @@ class GraphUNet(torch.nn.Module):
     embd_j = embedding[j].squeeze(-1)
     
     embd = (embd_i - embd_j) ** 2
-    # alternative way... bad
-    #embd_1 = (embd_i[..., :64] - embd_j[..., :64]) ** 2
-    #embd_2 = (embd_i[..., 64:] - embd_j[..., 64:]) ** 4
-    #embd = torch.cat([embd_1, embd_2], dim=-1)
 
     pred = self.embedding_decoder_mlp(embd)
     pred = pred.squeeze(-1)

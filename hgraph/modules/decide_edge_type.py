@@ -66,7 +66,6 @@ def decide_edge_type_predefined_distance(vec: torch.tensor, epsilon=0.00001, ret
     
     # assertion, suppose there are N thresholds (epsilon included), make sure that 
     # the type of different edges are at most N+1
-   # breakpoint()
     assert edge_type.max() == len(dist_threshold)     # there must be edges indexed N, since self-loop exists in all meshes
     assert edge_type.min() >= 0                       # note edge_type indexed N-1 may not exists, since edges of that length may not exists in this mesh
 

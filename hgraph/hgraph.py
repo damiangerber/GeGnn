@@ -1,16 +1,8 @@
 from __future__ import annotations
-from typing import Callable, Optional, Tuple
-
+from typing import Callable, Optional
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
 import torch_geometric
-from torch_geometric.nn import SAGEConv
-#from torch_geometric.nn import avg_pool, voxel_grid
-
-#from utils.thsolver import default_settings
 
 from .modules.decide_edge_type import *
 

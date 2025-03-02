@@ -49,7 +49,7 @@ DATA:
 
 MODEL:
   name: unet
-  feature: PN   # N -> Normal(3 channels);
+  # feature: PN   # N -> Normal(3 channels);
                 # P -> Points(3 channel)
   channel: 6
 

@@ -7,7 +7,7 @@ FLAGS = parse_args()
 default_settings.set_global_values(FLAGS)
 
 from utils import thsolver
-import hgraph
+from hgraph.models.graph_unet import GraphUNet
 
 from dataset_ps import get_dataset
 
@@ -26,7 +26,7 @@ class GnnDistSolver(thsolver.Solver):
 
     def get_model(self, flags):
         if flags.name.lower() == 'unet':
-            model = hgraph.models.graph_unet.GraphUNet(
+            model = GraphUNet(
                 flags.channel, flags.nout, flags.interp, flags.nempty
             )
         else:

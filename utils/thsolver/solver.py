@@ -17,6 +17,8 @@ import numpy as np
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
+from torch.utils.data import DataLoader
+
 from .sampler import InfSampler
 from .tracker import AverageTracker
 from .config import parse_args
@@ -37,7 +39,7 @@ class Solver:
       self.log_file = None        
       self.eval_rst = dict()      
 
-  def get_model(self):
+  def get_model(self, flags):
       raise NotImplementedError
 
   def get_dataset(self, flags):
@@ -72,7 +74,7 @@ class Solver:
   def get_dataloader(self, flags):
       dataset, collate_fn = self.get_dataset(flags)
       sampler = InfSampler(dataset, shuffle=flags.shuffle)
-      data_loader = torch.utils.data.DataLoader(
+      data_loader = DataLoader(
           dataset, batch_size=flags.batch_size, num_workers=flags.num_workers,
           sampler=sampler, collate_fn=collate_fn, pin_memory=False)
       return data_loader
