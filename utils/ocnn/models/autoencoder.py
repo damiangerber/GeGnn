@@ -6,13 +6,13 @@
 # --------------------------------------------------------
 
 import torch
-import torch.nn
+import torch.nn as nn
 
 from utils import ocnn
 from utils.ocnn.octree import Octree
 
 
-class AutoEncoder(torch.nn.Module):
+class AutoEncoder(nn.Module):
   r''' Octree-based AutoEncoder for shape encoding and decoding.
 
   Args:
@@ -39,31 +39,31 @@ class AutoEncoder(torch.nn.Module):
     # encoder
     self.conv1 = ocnn.modules.OctreeConvBnRelu(
         channel_in, self.channels[depth], nempty=False)
-    self.encoder_blks = torch.nn.ModuleList([ocnn.modules.OctreeResBlocks(
+    self.encoder_blks = nn.ModuleList([ocnn.modules.OctreeResBlocks(
         self.channels[d], self.channels[d], self.resblk_num, nempty=False)
         for d in range(depth, full_depth-1, -1)])
-    self.downsample = torch.nn.ModuleList([ocnn.modules.OctreeConvBnRelu(
+    self.downsample = nn.ModuleList([ocnn.modules.OctreeConvBnRelu(
         self.channels[d], self.channels[d-1], kernel_size=[2], stride=2,
         nempty=False) for d in range(depth, full_depth, -1)])
-    self.proj = torch.nn.Linear(
+    self.proj = nn.Linear(
         self.channels[full_depth], self.shape_code_channel, bias=True)
 
     # decoder
     self.channels[full_depth] = self.shape_code_channel  # update `channels`
-    self.upsample = torch.nn.ModuleList([ocnn.modules.OctreeDeconvBnRelu(
+    self.upsample = nn.ModuleList([ocnn.modules.OctreeDeconvBnRelu(
         self.channels[d-1], self.channels[d], kernel_size=[2], stride=2,
         nempty=False) for d in range(full_depth+1, depth+1)])
-    self.decoder_blks = torch.nn.ModuleList([ocnn.modules.OctreeResBlocks(
+    self.decoder_blks = nn.ModuleList([ocnn.modules.OctreeResBlocks(
         self.channels[d], self.channels[d], self.resblk_num, nempty=False)
         for d in range(full_depth, depth+1)])
 
     # header
-    self.predict = torch.nn.ModuleList([self._make_predict_module(
+    self.predict = nn.ModuleList([self._make_predict_module(
         self.channels[d], 2) for d in range(full_depth, depth + 1)])
     self.header = self._make_predict_module(self.channels[depth], channel_out)
 
   def _make_predict_module(self, channel_in, channel_out=2, num_hidden=64):
-    return torch.nn.Sequential(
+    return nn.Sequential(
         ocnn.modules.Conv1x1BnRelu(channel_in, num_hidden),
         ocnn.modules.Conv1x1(num_hidden, channel_out, use_bias=True))
 
