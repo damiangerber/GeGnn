@@ -4,6 +4,7 @@ SOLVER:
   logdir: logs/my_test
   max_epoch: 500
   test_every_epoch: 20
+  save_every_epoch: 50
   log_per_iter: 10
   ckpt_num: 5
 

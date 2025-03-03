@@ -208,6 +208,7 @@ class Solver:
                 'optimizer_dict': self.optimizer.state_dict(),
                 'scheduler_dict': self.scheduler.state_dict(), },
                ckpt_name + '.solver.tar')
+    print(f'Checkpoint saved to {ckpt_name}')
 
   def load_checkpoint(self):
     ckpt = self.FLAGS.SOLVER.ckpt
@@ -260,7 +261,8 @@ class Solver:
         self.test_epoch(epoch)
 
       # checkpoint
-      self.save_checkpoint(epoch)
+      if epoch % self.FLAGS.SOLVER.save_every_epoch == 0:
+        self.save_checkpoint(epoch)
 
   def test(self):
     self.manual_seed()

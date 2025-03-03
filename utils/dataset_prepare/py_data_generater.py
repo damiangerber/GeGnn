@@ -4,7 +4,6 @@ import pygeodesic.geodesic as geodesic
 import numpy as np
 import os
 import multiprocessing as mp
-from threading import Thread
 from tqdm import tqdm
 
 
