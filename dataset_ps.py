@@ -1,5 +1,4 @@
 import torch
-import utils
 from utils import ocnn
 
 import numpy as np
@@ -12,6 +11,17 @@ from hgraph.hgraph import HGraph
 class Transform(ocnn.dataset.Transform):
 
   def __call__(self, sample: dict, idx: int):
+    """ 
+    Is a transformation function that is applied to each sample. 
+    The transformation randomly resamples the distances used for the prediction.
+    
+    Args:
+      sample: a dict with keys: vertices, normals, edges, dist_idx, dist_val
+      idx: the index of the sample
+      
+    Returns:
+      a dict with keys: hgraph, vertices, normals, dist, edges
+    """
     vertices = torch.from_numpy(sample['vertices'].astype(np.float32))
     normals = torch.from_numpy(sample['normals'].astype(np.float32))
     edges = torch.from_numpy(sample['edges'].astype(np.float32)).t().contiguous().long()
@@ -21,10 +31,10 @@ class Transform(ocnn.dataset.Transform):
     dist = np.concatenate([dist_idx, dist_val], -1)
     dist = torch.from_numpy(dist)
 
-
-    rnd_idx = torch.randint(low=0, high=dist.shape[0], size=(100000,))
+    # randomly sample distance pairs
+    size = min(len(dist), 100_000)
+    rnd_idx = torch.randint(low=0, high=dist.shape[0], size=(size,))
     dist = dist[rnd_idx]
-
 
     # normalize
     norm2 = torch.sqrt(torch.sum(normals ** 2, dim=1, keepdim=True))
@@ -32,7 +42,6 @@ class Transform(ocnn.dataset.Transform):
 
     # construct hierarchical graph
     h_graph = HGraph()
-
     h_graph.build_single_hgraph(Data(x=torch.cat([vertices, normals], dim=1), edge_index=edges))
 
     return {'hgraph': h_graph,
@@ -41,15 +50,16 @@ class Transform(ocnn.dataset.Transform):
 
 
 def collate_batch(batch: list):
-  # batch: list of single samples.
-  # each sample is a dict with keys:
-  #         edges, vertices, normals, dist
-
-  # output: a big sample
+  """  
+  This function is used to collate a batch of samples.
+  
+  Args:
+    batch: list of single samples. Each sample is a dict with keys: edges, vertices, normals, dist
+    
+  Returns:
+    outputs: a big sample as a dict with keys: edges, vertices, normals, dist, feature, hgraph
+  """
   assert type(batch) == list
-
-  # merge many hgraphs into one super hgraph
-
 
   outputs = {}
   for key in batch[0].keys():
@@ -59,10 +69,8 @@ def collate_batch(batch: list):
   cum_sum = ocnn.utils.cumsum(pts_num, dim=0, exclusive=True)
   for i, dist in enumerate(outputs['dist']):
     dist[:, :2] += cum_sum[i]
-  #for i, edge in enumerate(outputs['edges']):
-  #  edge += cum_sum[i]
+
   outputs['dist'] = torch.cat(outputs['dist'], dim=0)
-  
 
   # input feature 
   vertices = torch.cat(outputs['vertices'], dim=0)
@@ -75,17 +83,6 @@ def collate_batch(batch: list):
   hgraph_super.merge_hgraph(outputs['hgraph'])
   outputs['hgraph'] = hgraph_super
 
-  #if (outputs['dist'].max() >= len(vertices)):
-  #  print("!!!!!!!")
-
-
-  # Merge a batch of octrees into one super octree
-  #octree = ocnn.octree.merge_octrees(outputs['octree'])
-  #octree.construct_all_neigh()
-  #outputs['octree'] = octree
-
-  # Merge a batch of points
-  #outputs['points'] = ocnn.octree.merge_points(outputs['points'])
   return outputs
 
 

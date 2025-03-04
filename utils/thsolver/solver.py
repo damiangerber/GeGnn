@@ -7,16 +7,15 @@
 from utils.thsolver import default_settings 
     
 import os
-import torch
-import torch.nn
-import torch.optim
-import torch.utils.data
 import time
 import random
 import numpy as np
 from tqdm import tqdm
-from torch.utils.tensorboard import SummaryWriter
 
+import torch
+import torch.nn
+from torch.optim import SGD, Adam, AdamW
+from torch.utils.tensorboard.writer import SummaryWriter
 from torch.utils.data import DataLoader
 
 from .sampler import InfSampler
@@ -92,13 +91,13 @@ class Solver:
       parameters = self.model.parameters()
 
       if flags.type.lower() == 'sgd':
-          self.optimizer = torch.optim.SGD(
+          self.optimizer = SGD(
               parameters, lr=flags.lr, weight_decay=flags.weight_decay, momentum=0.9)
       elif flags.type.lower() == 'adam':
-          self.optimizer = torch.optim.Adam(
+          self.optimizer = Adam(
               parameters, lr=flags.lr, weight_decay=flags.weight_decay)
       elif flags.type.lower() == 'adamw':
-          self.optimizer = torch.optim.AdamW(
+          self.optimizer = AdamW(
               parameters, lr=flags.lr, weight_decay=flags.weight_decay)
       else:
           raise ValueError
