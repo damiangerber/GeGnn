@@ -1,15 +1,16 @@
 import torch
-from utils.thsolver import default_settings 
-# Initialize global settings
-default_settings._init()
-from utils.thsolver.config import parse_args
-FLAGS = parse_args()
-default_settings.set_global_values(FLAGS)
 
-from utils import thsolver
 from hgraph.models.graph_unet import GraphUNet
+from utils.thsolver import default_settings
+from utils.thsolver.config import parse_args
+from utils import thsolver
 
 from dataset_ps import get_dataset
+
+# Initialize global settings
+default_settings._init()
+FLAGS = parse_args()
+default_settings.set_global_values(FLAGS)
 
 def get_parameter_number(model):
     """Print the number of parameters in a model on terminal."""
@@ -43,7 +44,7 @@ class GnnDistSolver(thsolver.Solver):
         return get_dataset(flags)
 
     def model_forward(self, batch):
-        """Equivalent to `self.get_embd` + `self.embd_decoder_func` """
+        """Equivalent to `self.get_embd` + `self.embd_decoder_func`"""
         data = batch["feature"].to(self.device)
         hgraph = batch['hgraph']
         dist = batch['dist'].to(self.device)
@@ -92,4 +93,4 @@ class GnnDistSolver(thsolver.Solver):
 
 if __name__ == "__main__":
     solver = GnnDistSolver(FLAGS)
-    solver.run()  # Changed to solver.run() to correctly initialize training/testing
+    solver.run()

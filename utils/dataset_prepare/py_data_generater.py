@@ -1,18 +1,19 @@
-#
-import trimesh
-import pygeodesic.geodesic as geodesic
-import numpy as np
 import os
 import multiprocessing as mp
+import random
+
+import numpy as np
+import trimesh
+import pygeodesic.geodesic as geodesic
 from tqdm import tqdm
 
+from utils.thsolver import default_settings
+from utils.thsolver.config import parse_args
 
-
-PATH_TO_MESH = "./data/meshes/"
-PATH_TO_OUTPUT_NPZ = "./data/npz/"
-PATH_TO_OUTPUT_FILELIST = "./data/filelist/"
-
-TRAINING_SPLIT_RATIO = 0.8
+# Initialize global settings
+default_settings._init()
+FLAGS = parse_args()
+default_settings.set_global_values(FLAGS)
 
 
 def visualize_ssad(vertices: np.ndarray, triangles: np.ndarray, source_index: int):
@@ -37,19 +38,17 @@ def visualize_two_pts(vertices: np.ndarray, triangles: np.ndarray, source_index:
     return distances
 
 
-def data_prepare_gen_dataset(object_file: str, output_path: str, num_sources, num_each_dest, tqdm_on=True):
+def data_prepare_gen_dataset(object_file: str, output_path: str, num_sources, num_destinations, tqdm_on=True):
     vertices = []
     triangles = []
 
     with open(object_file, "r") as f:
         lines = f.readlines()
         for each in lines:
-            if len(each) < 2:
-                continue
-            if each[0:2] == "v ":
+            if each.startswith("v "):
                 temp = each.split()
                 vertices.append([float(temp[1]), float(temp[2]), float(temp[3])])
-            if each[0:2] == "f ":
+            if each.startswith("f "):
                 temp = each.split()
                 # 
                 temp[3] = temp[3].split("/")[0]
@@ -73,15 +72,13 @@ def data_prepare_gen_dataset(object_file: str, output_path: str, num_sources, nu
     it = tqdm(range(num_sources)) if tqdm_on else range(num_sources)
     for i in it:
         source_indices = np.array([sources[i]])
-        target_indices = np.random.randint(low=0, high=len(vertices), size=[num_each_dest])
-        if source_indices.max() >= len(vertices):
-            print("!!!!!!!", source_indices.max(), len(vertices))
-        if target_indices.max() >= len(vertices):
-            print("!!!!!!!", target_indices.max(), len(vertices))
+        target_indices = np.random.randint(low=0, high=len(vertices), size=[num_destinations])
+        if (source_indices.max() >= len(vertices)) or (target_indices.max() >= len(vertices)):
+            raise ValueError("Index out of range")
 
         distances, best_source = geoalg.geodesicDistances(source_indices, target_indices)
 
-        a = source_indices.repeat([num_each_dest]).reshape([-1,1])
+        a = source_indices.repeat([num_destinations]).reshape([-1,1])
         b = target_indices.reshape([-1,1])
         c = distances.reshape([-1,1])
         new = np.concatenate([a, b, c], -1)
@@ -89,41 +86,67 @@ def data_prepare_gen_dataset(object_file: str, output_path: str, num_sources, nu
 
     np.savetxt(output_path, result)
 
-def computation_thread(filename, object_name, a, b, c, d, idx=None):
-    assert idx != None, "an idx has to be given"
+def computation_thread(filename, object_name, train_src, train_tgt, test_src, test_tgt, idx=None):
+    assert idx is not None, "An index ('idx') has to be given"
     tqdm_on = False
     if idx == 0:
         tqdm_on = True
     print(filename, object_name)
-    data_prepare_gen_dataset(filename, object_name + "_train_" + str(idx), a, b, tqdm_on=tqdm_on)
+    
+    train_output = object_name + "_train_" + str(idx)
+    test_output = object_name + "_test_" + str(idx)
+    
+    data_prepare_gen_dataset(filename, train_output, train_src, train_tgt, tqdm_on=tqdm_on)
+    data_prepare_gen_dataset(filename, test_output, test_src, test_tgt, tqdm_on=False)
 
+# def computation_thread(filename, object_name, a, b, c, d, idx=None):
+#     assert idx != None, "an idx has to be given"
+#     tqdm_on = False
+#     if idx == 0:
+#         tqdm_on = True
+#     print(filename, object_name)
+#     data_prepare_gen_dataset(filename, object_name + "_train_" + str(idx), a, b, tqdm_on=tqdm_on)
 
-
-
-##############################################
-###########   Main function   ################
-##############################################
 
 if __name__ == "__main__":
-    '''
-    a: on training set, how many sources to randomly sample.
-    b: on training set, for each source, how many dest to randomly sample.
-    c: on testing set, how many sources to randomly sample.
-    d: on testing set, for each source, how many dest to randomly sample.
-    threads: how many threads to use. 0 means all cores.
-    '''
+    """
+    Generates the npz files and filelists for the mesh data. Samples the geodesic distances for both training and test datasets.
+    
+    Args:
+        PATH_TO_MESH: str, path to the mesh files
+        PATH_TO_OUTPUT_NPZ: str, path to the output npz files
+        PATH_TO_OUTPUT_FILELIST: str, path to the output filelist
+        
+        split_ratio: float, ratio of training data
+        
+        num_train_sources: int, training set: number of sources to sample
+        num_train_targets_per_source: int, training set: destinations per source
+        num_test_sources: int, testing set: number of sources to sample
+        num_test_targets_per_source: int, testing set: destinations per source
+        
+        file_size_threshold: int, file size threshold
+        threads: int, number of threads. 0 uses all cores
+    """
 
-    #############################################################
-    object_name = None 
-    a = 300
-    b = 800
-    c = 400
-    d = 60
-    file_size_threshold = 12_048_576     # a threshold to filter out large meshes
-    threads = 1
-    #############################################################
+    PATH_TO_MESH = FLAGS.DATA.preparation.path_to_mesh
+    PATH_TO_OUTPUT_NPZ = FLAGS.DATA.preparation.path_to_output_npz
+    PATH_TO_OUTPUT_FILELIST = FLAGS.DATA.preparation.path_to_output_filelist
 
+    SPLIT_RATIO = FLAGS.DATA.preparation.split_ratio
+    FILE_SIZE_THRESHOLD = FLAGS.DATA.preparation.file_size_threshold
+    LARGE_DISTANCE_THRESHOLD = 1e8
+    
+    # number of sources and targets for sampling the distances
+    num_train_sources = FLAGS.DATA.preparation.num_train_sources
+    num_train_targets_per_source = FLAGS.DATA.preparation.num_train_targets_per_source
+    num_test_sources = FLAGS.DATA.preparation.num_test_sources
+    num_test_targets_per_source = FLAGS.DATA.preparation.num_test_targets_per_source
+    
+    threads = FLAGS.DATA.preparation.threads
+    object_name = None
+    
     assert threads >= 0 and type(threads) == int
+    
     if threads == 0:
         threads = mp.cpu_count()
         print(f"Automatically utilize all CPU cores ({threads})")
@@ -131,29 +154,23 @@ if __name__ == "__main__":
         print(f"{threads} CPU cores are utilized!")
 
     # make dirs, if not exist
-    if os.path.exists(PATH_TO_OUTPUT_NPZ) == False:
+    if not os.path.exists(PATH_TO_OUTPUT_NPZ):
         os.mkdir(PATH_TO_OUTPUT_NPZ)
-    if os.path.exists(PATH_TO_OUTPUT_FILELIST) == False:
+    if not os.path.exists(PATH_TO_OUTPUT_FILELIST):
         os.mkdir(PATH_TO_OUTPUT_FILELIST)
             
     all_files = []
     for mesh in os.listdir(PATH_TO_MESH):
         # check if the file is too large
-        if os.path.getsize(PATH_TO_MESH + mesh) < file_size_threshold:
-            all_files.append(PATH_TO_MESH + mesh)
-
-
-    
-    #all_files = os.listdir("./inputs")
+        if os.path.getsize(PATH_TO_MESH + mesh) < FILE_SIZE_THRESHOLD:
+            all_files.append(os.path.join(PATH_TO_MESH, mesh))
 
     object_names = all_files
     for i in range(len(object_names)):
-        if object_names[i][-4:] == ".obj":
+        if object_names[i].endswith(".obj"):
             object_names[i] = object_names[i][:-4]
-
-    
+            
     print(f"Current dir: {os.getcwd()}, object to be processed: {len(object_names)}")
-   
    
     # handle the case when the output file already exists
     for i in tqdm(range(len(object_names))):
@@ -167,15 +184,13 @@ if __name__ == "__main__":
         
         filename = object_name + ".obj"
        
-
         train_data_filename_list = []
         test_data_filename_list = []
-
 
         pool = []
 
         for t in range(threads):
-            task = mp.Process(target=computation_thread, args=(filename, object_name, a//threads,b,c//threads,d, t,))
+            task = mp.Process(target=computation_thread, args=(filename, object_name, num_train_sources//threads,num_train_targets_per_source,num_test_sources//threads,num_train_targets_per_source, t,))
             task.start()
             pool.append(task)
         for t, task in enumerate(pool):
@@ -190,9 +205,7 @@ if __name__ == "__main__":
                 with open(object_name + "_train", "a") as f:
                     f.write(data)
         except:
-            print("Error on " + object_name + ", this is mostly due to non-manifold (failed to initialise the PyGeodesicAlgorithmExact class instance)")
-            continue
-
+            raise ValueError("Error on " + object_name + ", this is mostly due to non-manifold (failed to initialise the PyGeodesicAlgorithmExact class instance)")
 
         for each in (train_data_filename_list + test_data_filename_list):
             os.remove(each)
@@ -216,12 +229,10 @@ if __name__ == "__main__":
         
         # sanity check
         vertices = mesh.vertices
-        if dist.max() > 100000000:
-            print("inf encountered!!")
+        if dist.max() > LARGE_DISTANCE_THRESHOLD:
+            raise ValueError("Distance too large!")
         elif ((dist.astype(np.float32).max()) >= vertices.shape[0]):
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            print(object_name, "encountered trimesh loading error!!")
-            continue
+            raise ValueError("Encountered a trimesh loading error!")
 
         np.savez(filename_out,
                 edges=cc,
@@ -232,30 +243,25 @@ if __name__ == "__main__":
                 dist_idx=dist[:, :2].astype(np.uint16),
         )
         
-        
-    ################################################################
     
     print("\nnpz data generation finished. Now generating filelist...\n")
-    # filelist
-    lines = []
+    lines = [] # filelist
     for each in tqdm(object_names):
         filename_out = PATH_TO_OUTPUT_NPZ + each.split("/")[-1] + ".npz"
         try:
             dist = np.load(filename_out)
+            
             # sanity check
-            if dist['dist_val'].max() != np.inf and dist['dist_val'].max() < 1000000000:
+            if dist['dist_val'].max() != np.inf and dist['dist_val'].max() < LARGE_DISTANCE_THRESHOLD:
                 lines.append(filename_out + "\n")
             else:
-                print(f"{filename_out} not good, contains inf!")
-                continue
+                raise ValueError("File contains inf for the distances!")
         except Exception:
-            print(f"load {filename_out} failed for unknown reason.")
-            continue
+            raise ValueError("load " + filename_out + " failed...")
     
-    import random
+    # Split up into test and train set
     random.shuffle(lines)
-    # split
-    train_num = int(len(lines) * TRAINING_SPLIT_RATIO)
+    train_num = int(len(lines) * SPLIT_RATIO)
     test_num  = len(lines) - train_num
     train_lines = lines[:train_num]
     test_lines  = lines[train_num:]

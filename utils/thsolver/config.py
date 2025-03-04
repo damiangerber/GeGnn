@@ -82,6 +82,23 @@ _C.DATA.train.in_memory     = False       # Load the training data into memory
 _C.DATA.test = _C.DATA.train.clone()
 _C.DATA.test.num_workers    = 2
 
+# For data preparation
+_C.DATA.preparation = CN()
+_C.DATA.preparation.path_to_mesh = './data/meshes/'
+_C.DATA.preparation.path_to_output_npz = './data/npz/'
+_C.DATA.preparation.path_to_output_filelist = './data/filelist/'
+
+# Variables for splitting and distance generation
+_C.DATA.preparation.split_ratio = 0.8
+_C.DATA.preparation.num_train_sources = 300
+_C.DATA.preparation.num_train_targets_per_source = 800
+_C.DATA.preparation.num_test_sources = 400
+_C.DATA.preparation.num_test_targets_per_source = 60
+
+# Variables for filtering and running
+_C.DATA.preparation.file_size_threshold = 12_048_576  # Threshold to filter out large meshes
+_C.DATA.preparation.threads = 1
+
 # MODEL related parameters
 _C.MODEL = CN()
 _C.MODEL.name               = ''          # The name of the model
