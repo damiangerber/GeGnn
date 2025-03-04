@@ -1,17 +1,16 @@
 SOLVER:
   run: train
-  
+
   logdir: logs/my_test
   max_epoch: 500
   test_every_epoch: 20
   save_every_epoch: 50
   log_per_iter: 10
-  ckpt_num: 5
 
   # optimizer
   type: adamw
   weight_decay: 0.01  # default value of adamw
-  lr: 0.00025       
+  lr: 0.00025
 
   # learning rate
   lr_type: poly
@@ -79,7 +78,7 @@ MODEL:
   include_distance: True     # only appliable when use dist conv. if true, the distance between points will be concated to the feature.
 
   normal_aware_pooling: True  # when grid pooling, consider normal or not
-  
+
 
 # visualization, will not affect the training/testing process, only visualization
 
