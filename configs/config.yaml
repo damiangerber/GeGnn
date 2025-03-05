@@ -68,9 +68,10 @@ MODEL:
   name: unet
   # feature: PN   # N -> Normal(3 channels);
                 # P -> Points(3 channel)
-  channel: 6
 
-  nout: 256     # the final embedding dimension of each vertices
+  in_channels: 6          # input dimension of each vertices
+  hidden_channels: 256    # hidden dimensions of the vertices
+  out_channels: 256       # the final embedding dimension of each vertices
 
   # SAGE, GAT, Edge, DirConv, DistConv, my
   conv_type: my

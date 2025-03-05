@@ -13,16 +13,25 @@ class GraphUNet(nn.Module):
     the data structure.
     """
 
-    def __init__(self, in_channels: int, out_channels: int):
+    def __init__(self, in_channels: int, hidden_channels: int, out_channels: int):
         super(GraphUNet, self).__init__()
+
+        # The number of input, hidden, and output channels
         self.in_channels = in_channels
+        self.hidden_channels = hidden_channels
         self.out_channels = out_channels
-        self.config_network()
+
+        # The number of blocks in each stage of the encoder and decoder
+        self.encoder_blocks = [2, 3, 3, 3, 2]
+        self.decoder_blocks = [2, 3, 3, 3, 2]
         self.encoder_stages = len(self.encoder_blocks)
         self.decoder_stages = len(self.decoder_blocks)
 
-        # encoder
-        self.conv1 = modules.GraphConvBnRelu(in_channels, self.encoder_channel[0])
+        self.bottleneck = 1
+        self.resblk = GraphResBlock2
+
+        # Encoder
+        self.conv1 = modules.GraphConvBnRelu(in_channels, self.hidden_channels)
 
         self.downsample = nn.ModuleList(
             [modules.PoolingGraph() for i in range(self.encoder_stages)]
@@ -30,8 +39,8 @@ class GraphUNet(nn.Module):
         self.encoder = nn.ModuleList(
             [
                 GraphResBlocks(
-                    self.encoder_channel[i],
-                    self.encoder_channel[i + 1],
+                    self.hidden_channels,
+                    self.hidden_channels,
                     resblk_num=self.encoder_blocks[i],
                     resblk=self.resblk,
                 )
@@ -39,9 +48,9 @@ class GraphUNet(nn.Module):
             ]
         )
 
-        # decoder
+        # Decoder
         channel = [
-            self.decoder_channel[i] + self.encoder_channel[-i - 2]
+            self.hidden_channels + self.hidden_channels
             for i in range(self.decoder_stages)
         ]
         self.upsample = nn.ModuleList(
@@ -51,7 +60,7 @@ class GraphUNet(nn.Module):
             [
                 GraphResBlocks(
                     channel[i],
-                    self.decoder_channel[i + 1],
+                    self.hidden_channels,
                     resblk_num=self.decoder_blocks[i],
                     resblk=self.resblk,
                     bottleneck=self.bottleneck,
@@ -62,8 +71,8 @@ class GraphUNet(nn.Module):
 
         # header
         self.header = nn.Sequential(
-            modules.Conv1x1BnRelu(self.decoder_channel[-1], self.decoder_channel[-1]),
-            modules.Conv1x1(self.decoder_channel[-1], self.out_channels, use_bias=True),
+            modules.Conv1x1BnRelu(self.hidden_channels, self.hidden_channels),
+            modules.Conv1x1(self.hidden_channels, self.out_channels, use_bias=True),
         )
 
         # an embedding decoder function
@@ -74,23 +83,6 @@ class GraphUNet(nn.Module):
             nn.ReLU(),
             nn.Linear(self.out_channels, 1, bias=True),
         )
-
-    def config_network(self):
-        """
-        Configure the network channels and Resblock numbers.
-        """
-        self.encoder_blocks = [2, 3, 3, 3, 2]
-        self.decoder_blocks = [2, 3, 3, 3, 2]
-        self.encoder_channel = [256, 256, 256, 256, 256, 256]
-        self.decoder_channel = [256, 256, 256, 256, 256, 256]
-
-        #  self.encoder_blocks = [4, 9, 9, 3]
-        # self.decoder_blocks = [4, 9, 9, 3]
-        # self.encoder_channel = [512, 512, 512, 512, 512,]
-        # self.decoder_channel = [512, 512, 512, 512, 512]
-
-        self.bottleneck = 1
-        self.resblk = GraphResBlock2
 
     def unet_encoder(self, data: torch.Tensor, hgraph: HGraph, depth: int):
         """

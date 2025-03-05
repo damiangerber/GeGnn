@@ -29,7 +29,9 @@ class GnnDistSolver(thsolver.Solver):
 
     def get_model(self, flags):
         if flags.name.lower() == "unet":
-            model = GraphUNet(flags.channel, flags.nout)
+            model = GraphUNet(
+                flags.in_channels, flags.hidden_channels, flags.out_channels
+            )
         else:
             raise ValueError("Unknown model name")
 

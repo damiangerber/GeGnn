@@ -107,8 +107,9 @@ _C.DATA.preparation.threads = 1
 _C.MODEL = CN()
 _C.MODEL.name = ""  # The name of the model
 _C.MODEL.feature = "ND"  # The input features
-_C.MODEL.channel = 3  # The input feature channel
-_C.MODEL.nout = 40  # The output feature channel
+_C.MODEL.in_channels = 3  # The input feature channel
+_C.MODEL.hidden_channels = 64  # The hidden feature channel
+_C.MODEL.out_channels = 64  # The output feature channel
 
 _C.MODEL.stages = 3
 _C.MODEL.resblock_num = 3  # The resblock number
