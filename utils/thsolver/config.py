@@ -109,7 +109,6 @@ _C.MODEL.name = ""  # The name of the model
 _C.MODEL.feature = "ND"  # The input features
 _C.MODEL.channel = 3  # The input feature channel
 _C.MODEL.nout = 40  # The output feature channel
-_C.MODEL.nempty = False  # Perform Octree Conv on non-empty octree nodes
 
 _C.MODEL.stages = 3
 _C.MODEL.resblock_num = 3  # The resblock number
@@ -117,7 +116,6 @@ _C.MODEL.resblock_type = "bottleneck"  # Choose from 'bottleneck' and 'basic
 _C.MODEL.bottleneck = 4  # The bottleneck factor of one resblock
 
 _C.MODEL.upsample = "nearest"  # The method used for upsampling
-_C.MODEL.interp = "linear"  # The interplation method: linear or nearest
 
 _C.MODEL.sync_bn = False  # Use sync_bn when training the network
 _C.MODEL.use_checkpoint = False  # Use checkpoint to save memory
@@ -128,6 +126,7 @@ _C.MODEL.include_distance = False
 _C.MODEL.normal_aware_pooling = False
 _C.MODEL.test_mesh = "TBD"
 _C.MODEL.get_test_stat = False
+_C.MODEL.output_dir = "out/"
 
 
 # loss related parameters

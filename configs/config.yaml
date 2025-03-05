@@ -71,7 +71,6 @@ MODEL:
   channel: 6
 
   nout: 256     # the final embedding dimension of each vertices
-  nempty: True
 
   # SAGE, GAT, Edge, DirConv, DistConv, my
   conv_type: my

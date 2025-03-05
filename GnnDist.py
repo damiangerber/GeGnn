@@ -12,12 +12,14 @@ default_settings._init()
 FLAGS = parse_args()
 default_settings.set_global_values(FLAGS)
 
+
 def get_parameter_number(model):
     """Print the number of parameters in a model on terminal."""
     total_num = sum(p.numel() for p in model.parameters())
     trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"\nTotal Parameters: {total_num}, trainable: {trainable_num}")
-    return {'Total': total_num, 'Trainable': trainable_num}
+    return {"Total": total_num, "Trainable": trainable_num}
+
 
 class GnnDistSolver(thsolver.Solver):
 
@@ -26,16 +28,14 @@ class GnnDistSolver(thsolver.Solver):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def get_model(self, flags):
-        if flags.name.lower() == 'unet':
-            model = GraphUNet(
-                flags.channel, flags.nout, flags.interp, flags.nempty
-            )
+        if flags.name.lower() == "unet":
+            model = GraphUNet(flags.channel, flags.nout)
         else:
             raise ValueError("Unknown model name")
-        
+
         # Move model to the correct device
         model.to(self.device)
-        
+
         # Print the number of parameters
         get_parameter_number(model)
         return model
@@ -46,8 +46,8 @@ class GnnDistSolver(thsolver.Solver):
     def model_forward(self, batch):
         """Equivalent to `self.get_embd` + `self.embd_decoder_func`"""
         data = batch["feature"].to(self.device)
-        hgraph = batch['hgraph']
-        dist = batch['dist'].to(self.device)
+        hgraph = batch["hgraph"]
+        dist = batch["dist"].to(self.device)
 
         pred = self.model(data, hgraph, hgraph.depth, dist)
         return pred
@@ -55,8 +55,8 @@ class GnnDistSolver(thsolver.Solver):
     def get_embd(self, batch):
         """Only used in visualization!"""
         data = batch["feature"].to(self.device)
-        hgraph = batch['hgraph']
-        dist = batch['dist'].to(self.device)
+        hgraph = batch["hgraph"]
+        dist = batch["dist"].to(self.device)
 
         embedding = self.model(data, hgraph, hgraph.depth, dist, only_embd=True)
         return embedding
@@ -75,21 +75,22 @@ class GnnDistSolver(thsolver.Solver):
     def train_step(self, batch):
         pred = self.model_forward(batch)
         loss = self.loss_function(batch, pred)
-        return {'train/loss': loss}
+        return {"train/loss": loss}
 
     def test_step(self, batch):
         pred = self.model_forward(batch)
         loss = self.loss_function(batch, pred)
-        return {'test/loss': loss}
+        return {"test/loss": loss}
 
     def loss_function(self, batch, pred):
-        dist = batch['dist'].to(self.device)
+        dist = batch["dist"].to(self.device)
         gt = dist[:, 2]
 
         loss = (torch.abs(pred - gt) / (gt + 1e-3)).mean()
         loss = torch.clamp(loss, -10, 10)
 
         return loss
+
 
 if __name__ == "__main__":
     solver = GnnDistSolver(FLAGS)
